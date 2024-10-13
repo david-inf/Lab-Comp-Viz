@@ -46,6 +46,7 @@ def main(opts):
 
     ## Training
     model = Net(opts.model_name)
+    print(model.net)
 
     losses_train, accs_train, losses_test, accs_test = train_loop(
         train_loader, test_loader, model, device, opts.lr, opts.momentum,
@@ -60,22 +61,20 @@ def main(opts):
 if __name__ == "__main__":
 
     ### If options are passed through a yaml file
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("config", help="YAML Configuration file")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", help="YAML Configuration file")
 
-    # # opts = yaml.load(open(parser.parse_args().config), Loader=yaml.Loader)
-
-    # # store parsed arguments into args for clarity
-    # args = parser.parse_args()
-    # with open(args.config, "r") as f:
-    #     # ensures the file il properly closed afeter reading
-    #     # SafeLoader is generally preferred
-    #     opts = yaml.load(f, Loader=yaml.SafeLoader)
+    # store parsed arguments into args for clarity
+    args = parser.parse_args()
+    with open(args.config, "r") as f:
+        # ensures the file il properly closed afeter reading
+        # SafeLoader is generally preferred
+        opts = yaml.load(f, Loader=yaml.SafeLoader)
 
     ### If options are passed through a dictionary, use for debugging
     # opts = dict(lr=0.01, momentum=0., nesterov=False, batch_size=64, max_epochs=5)
-    opts = dict(lr=[0.01, 0.001], momentum=[0., 0.9], nesterov=False,
-                batch_size=64, max_epochs=5)
+    # opts = dict(lr=[0.01, 0.001], momentum=[0., 0.9], nesterov=False,
+    #             batch_size=64, max_epochs=5)
 
     opts = SimpleNamespace(**opts)
 

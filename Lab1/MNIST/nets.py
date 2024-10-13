@@ -33,6 +33,12 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(128, 10)
         self.relu = nn.ReLU()
 
+        self.fc1_net2 = nn.Linear(1600, 128)
+
+        self.conv1_net3 = nn.Conv2d(1, 16, 3, 1, 2)
+        self.conv2_net3 = nn.Conv2d(16, 32, 3, 1)
+        self.fc1_net3 = nn.Linear(2304, 128)
+
 
     def forward(self, x):
         # x.shape B, N, H, W
@@ -48,8 +54,28 @@ class Net(nn.Module):
             x = self.fc2(x)
             # last x has the logits
 
-        # elif net == "Net2":
-            # first customization
+        elif self.net == "Net2":
+            ## Convolution layers
+            x = self.relu(self.conv1(x))
+            x = self.pool(x)
+            x = self.relu(self.conv2(x))
+            x = self.pool(x)
+            ## Network layers
+            x = torch.flatten(x, 1)
+            x = self.relu(self.fc1_net2(x))
+            x = self.fc2(x)
+
+        elif self.net == "Net3":
+            ## Convolution layers
+            x = self.relu(self.conv1_net3(x))
+            x = self.relu(self.conv2_net3(x))
+            x = self.pool(x)
+            x = self.relu(self.conv2(x))
+            x = self.pool(x)
+            ## Network layers
+            x = torch.flatten(x, 1)
+            x = self.relu(self.fc1_net3(x))
+            x = self.fc2(x)
 
         # la log(softmax) serve poi in fase di calcolo della CE loss
         output = F.log_softmax(x, dim=1)

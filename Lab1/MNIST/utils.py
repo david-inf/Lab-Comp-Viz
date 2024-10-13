@@ -107,7 +107,7 @@ def test(model, device, test_loader, info=True):
 
 
 def train_loop(train_loader, test_loader, model, device, lr, momentum,
-               nesterov, max_epochs, info=True, test=True):
+               nesterov, max_epochs, info=True, do_test=True):
 
     model.to(device)
 
@@ -125,7 +125,7 @@ def train_loop(train_loader, test_loader, model, device, lr, momentum,
         losses_train.append(loss_train)
         accs_train.append(acc_train)
 
-        if test:
+        if do_test:
             loss_test, acc_test = test(model, device, test_loader, info)
             losses_test.append(loss_test)
             accs_test.append(acc_test)

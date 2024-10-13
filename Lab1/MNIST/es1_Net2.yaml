@@ -3,6 +3,6 @@ momentum: 0.
 nesterov: false
 batch_size: 64
 max_epochs: 20
-model_name: "Net1"
+model_name: "Net2"
 device: "cuda"
-save_to: "es0.pdf"
+save_to: "./plots/es1_Net2.pdf"
