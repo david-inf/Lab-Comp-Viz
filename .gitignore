@@ -1,6 +1,5 @@
 # Altro
-Lab1/MNIST/data/
-Lab1/CIFAR10/data/
+Lab1/data/
 *.t
 *.txt
 *.spydata
