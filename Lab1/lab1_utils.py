@@ -16,6 +16,11 @@ def get_lr(optimizer):
         return param_group['lr']
 
 
+def count_trainable_parameters(model):
+
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 def train(model, device, train_loader, criterion, optimizer):
     model.train()  # training mode
 
@@ -81,6 +86,7 @@ def test(model, device, criterion, test_loader):
 
 def train_loop(train_loader, test_loader, model, criterion, device,
                lr, momentum, max_epochs, do_test=True):
+    """" Training loop with SGD """
 
     model.to(device)
 
@@ -118,6 +124,45 @@ def train_loop(train_loader, test_loader, model, criterion, device,
         return losses_train, accs_train
 
 
+def train_loop_sched(train_loader, test_loader, model, criterion, device,
+                     optimizer, scheduler=None, max_epochs=10, do_test=True):
+    """ Training loop with custom optimizer and optional learning rate scheduler """
+
+    losses_train, accs_train = [], []
+    losses_test, accs_test = [], []
+
+    _start = time.time()
+    _epoch_time = time.time()
+
+    # epoch number only for logging
+    for epoch in range(1, max_epochs + 1):
+        ## Training
+        loss_train, acc_train = train(model, device, train_loader, criterion, optimizer)
+        print(f"Epoch: {epoch}, Learning rate: {get_lr(optimizer):.6f}")
+        print(f"Training - Loss: {loss_train:.4f}, Accuracy: {acc_train:.2f}, Runtime: {(time.time() - _epoch_time):.2f}")
+        losses_train.append(loss_train)
+        accs_train.append(acc_train)
+        # Learning rate scheduler
+        if scheduler is not None:
+            scheduler.step()
+        ## Test/Validation
+        if do_test:
+            loss_test, acc_test = test(model, device, criterion, test_loader)
+            losses_test.append(loss_test)
+            accs_test.append(acc_test)
+            print(f"Test - Loss: {loss_test:.4f}, Accuracy: {acc_test:.2f}")
+
+        _epoch_time = time.time()
+
+    _end = time.time()
+    print(f"Done! - Runtime: {(_end-_start):.2f} seconds")
+
+    if do_test:
+        return losses_train, accs_train, losses_test, accs_test
+    else:
+        return losses_train, accs_train
+
+
 def test_class(model, device, criterion, test_loader, classes):
     model.eval()  # configura il modello in evaluation mode
 
@@ -125,8 +170,8 @@ def test_class(model, device, criterion, test_loader, classes):
     correct_pred = {classname: 0 for classname in classes}
     total_pred = {classname: 0 for classname in classes}
 
-    losses, accs = [], []
-    correct = 0.
+    # losses, accs = [], []
+    # correct = 0.
 
     with torch.no_grad():
         for data, target in test_loader:
