@@ -7,6 +7,8 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
+import json
+
 import torch
 import torch.optim as optim
 
@@ -139,7 +141,7 @@ def train_loop_sched(train_loader, test_loader, model, criterion, device,
         ## Training
         loss_train, acc_train = train(model, device, train_loader, criterion, optimizer)
         print(f"Epoch: {epoch}, Learning rate: {get_lr(optimizer):.6f}")
-        print(f"Training - Loss: {loss_train:.4f}, Accuracy: {acc_train:.2f}, Runtime: {(time.time() - _epoch_time):.2f}")
+        print(f"Training - Loss: {loss_train:.4f}, Accuracy: {acc_train:.3f}, Runtime: {(time.time() - _epoch_time):.2f}")
         losses_train.append(loss_train)
         accs_train.append(acc_train)
         # Learning rate scheduler
@@ -150,7 +152,7 @@ def train_loop_sched(train_loader, test_loader, model, criterion, device,
             loss_test, acc_test = test(model, device, criterion, test_loader)
             losses_test.append(loss_test)
             accs_test.append(acc_test)
-            print(f"Test - Loss: {loss_test:.4f}, Accuracy: {acc_test:.2f}")
+            print(f"Test - Loss: {loss_test:.4f}, Accuracy: {acc_test:.3f}")
 
         _epoch_time = time.time()
 
@@ -170,22 +172,37 @@ def test_class(model, device, criterion, test_loader, classes):
     correct_pred = {classname: 0 for classname in classes}
     total_pred = {classname: 0 for classname in classes}
 
-    # losses, accs = [], []
-    # correct = 0.
+    # prepare to count overall predictions
+    losses, accs = [], []
+    correct = 0.
 
     with torch.no_grad():
         for data, target in test_loader:
-            data, targets = data.to(device), target.to(device)
+            data, target = data.to(device), target.to(device)
 
-            ## Fit data
+            ## Fit data and compute loss
             output = model(data)
+            loss = criterion(output, target)
 
             ## Prediction
-            preds = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
-            for target, pred in zip(targets, preds):
-                if target == pred:
-                    correct_pred[classes[target]] += 1
-                total_pred[classes[target]] += 1
+            pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
+
+            # compute overall accuracy
+            correct = torch.eq(pred, target.view_as(pred)).float()
+            acc = torch.mean(correct)
+            # update loss and accuracy
+            losses.append(loss.detach().cpu().numpy())
+            accs.append(acc.detach().cpu().numpy())
+
+            for target_i, pred_i in zip(target, pred):
+                if target_i == pred_i:
+                    correct_pred[classes[target_i]] += 1
+                total_pred[classes[target_i]] += 1
+
+    loss_final = np.array(losses).mean()
+    acc_final = np.array(accs).mean()
+    print(f"Final loss: {loss_final:.4f}, Accuracy: {acc_final:.3f}")
+    print("-------")
 
     # print accuracy for each class
     for classname, correct_count in correct_pred.items():
@@ -288,9 +305,14 @@ def multiple_diagnostic_single(loss_acc_dict, max_epochs=10):
     ax.legend()
 
 
-def multiple_diagnostic(loss_acc_dict, max_epochs=10, title_left="Training loss against epochs",
+def multiple_diagnostic(loss_acc_dict, max_epochs=None, title_left="Training loss against epochs",
                        title_right="Test accuracy against epochs"):
     # loss_acc_dict = {"Solver1": [loss, acc]...}
+
+    if max_epochs is None:
+        max_epochs = len(next(iter(loss_acc_dict.values()))[0])
+        # print(max_epochs)
+
     epochs_seq = np.arange(1, max_epochs + 1)
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 4), layout="constrained")
@@ -302,11 +324,33 @@ def multiple_diagnostic(loss_acc_dict, max_epochs=10, title_left="Training loss 
         axs[0].plot(epochs_seq, perf[0], label=solver_name)
         axs[0].grid("both")
         axs[0].set_title(title_left)
+        # axs[0].set_xlabel("Epochs")
+        # axs[0].set_ylabel("Loss")
+        axs[0].tick_params(axis="y")
+        axs[0].set_xticks(np.arange(1, max_epochs+1, step=2))
+        axs[0].set_xticklabels(np.arange(1, max_epochs+1, 2))
 
         # plot accuracy performance
         axs[1].plot(epochs_seq, perf[1], label=solver_name)
         axs[1].grid("both")
         axs[1].set_title(title_right)
+        # axs[1].set_xlabel("Epochs")
+        # axs[1].set_ylabel("Accuracy")
+        axs[1].tick_params(axis="y")
+        axs[1].set_xticks(np.arange(1, max_epochs+1, step=2))
+        axs[1].set_xticklabels(np.arange(1, max_epochs+1, 2))
 
     axs[0].legend()
     axs[1].legend()
+
+
+def save_to_json(loss_acc_dict, file_name):
+    """ Save diagnostic to JSON file for reuse """
+    # loss_acc_dict: {"Solver1": [[list of np.float32], [list of np.float32]]}
+    # file_name: "file_name.json"
+
+    # convert to float for serialization
+    dict_converted = {k: [[float(x) for x in seq] for seq in v] for k, v in loss_acc_dict.items()}
+
+    with open(file_name, "w") as file:
+        json.dump(dict_converted, file)
