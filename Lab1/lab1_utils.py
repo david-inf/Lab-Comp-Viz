@@ -236,9 +236,10 @@ def simple_diagnostic(max_epochs, losses_train, accs_train):
     ax_1.tick_params(axis="y", labelcolor=color)
 
 
-def diagnostic(max_epochs, losses_train, accs_train, losses_test, accs_test):
+def diagnostic(losses_train, accs_train, losses_test, accs_test):
     ## left side training performance
     ## right side test performance
+    max_epochs = len(losses_train)
     epochs_seq = np.arange(1, max_epochs + 1)
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 4), layout="constrained")
@@ -306,7 +307,7 @@ def multiple_diagnostic_single(loss_acc_dict, max_epochs=10):
 
 
 def multiple_diagnostic(loss_acc_dict, max_epochs=None, title_left="Training loss against epochs",
-                       title_right="Test accuracy against epochs"):
+                        title_right="Test accuracy against epochs", fig_title=""):
     # loss_acc_dict = {"Solver1": [loss, acc]...}
 
     if max_epochs is None:
@@ -316,7 +317,7 @@ def multiple_diagnostic(loss_acc_dict, max_epochs=None, title_left="Training los
     epochs_seq = np.arange(1, max_epochs + 1)
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 4), layout="constrained")
-    # fig.suptitle("CNN training performance over CIFAR10")
+    fig.suptitle(fig_title)
 
     for solver_name, perf in loss_acc_dict.items():
 
