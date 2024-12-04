@@ -13,7 +13,6 @@ def off_diagonal(x):
 class BarlowTwins(nn.Module):
     def __init__(self, lambd):
         super().__init__()
-        # self.device = device
         self.lambd = lambd  # for the redundancy reduction term
 
         # barlow twins projector (espande la rappresentazione)
@@ -38,24 +37,17 @@ class BarlowTwins(nn.Module):
 
         x1 = self.bn(self.projector(features1))  # z^A=[N, 512]
         x2 = self.bn(self.projector(features2))  # z^B=[N, 512]
-        x1 = F.normalize(x1, dim=1)  # z^A=[N, 512]
-        x2 = F.normalize(x2, dim=1)  # z^B=[N, 512]
+        x1 = F.normalize(x1, dim=0)  # z^A=[N, 512]
+        x2 = F.normalize(x2, dim=0)  # z^B=[N, 512]
 
         # cross-correlation matrix (similarity matrix between features)
-        # norm_i = torch.sqrt(torch.sum(features1**2, dim=0))  # [512]
-        # norm_j = torch.sqrt(torch.sum(features2**2, dim=0))  # [512]
-        cross_corr_matrix = x1.matmul(x2.T)  # C=[N, N]
+        size = x1.shape[0]
+        cross_corr_matrix = x1.T @ x2  # C=[N, N]
+        # cross_corr_matrix.div_(size)
         # print(cross_corr_matrix)
 
-        invariance = torch.sum((1 - torch.diagonal(cross_corr_matrix)).pow_(2))
-        # for i in range(cross_corr_matrix.shape[0]):
-        #     C_ii = cross_corr_matrix[i, i]
-        #     invariance += (1 - C_ii)**2
-
-        # redundancy_reduction = torch.sum((cross_corr_matrix - torch.diag(torch.diagonal(cross_corr_matrix)))**2)
-        redundancy_reduction = torch.sum(off_diagonal(cross_corr_matrix).pow_(2))
-        # for i in range(cross_corr_matrix.shape[0]):
-        #     for j in range(cross_corr_matrix.shape[1]):
+        invariance = torch.diagonal(cross_corr_matrix).add_(-1).pow_(2).sum()
+        redundancy_reduction = off_diagonal(cross_corr_matrix).pow_(2).sum()
 
         loss = invariance + self.lambd * redundancy_reduction
         return loss
