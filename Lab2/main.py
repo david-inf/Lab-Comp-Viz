@@ -14,14 +14,16 @@ from dataset import BaseDataset, AugmentedImageDataset, MakeDataLoaders
 
 
 def barlowtwins(config):
+    from torch.utils.data import DataLoader
     from nets import SiameseNetSync as SiameseNet
     from barlow import BarlowTwins
 
     ## **** Pre-training **** ##
     ### Dataset and DataLoader
-    trainset = AugmentedImageDataset()
-    loader = MakeDataLoaders(trainset, config.batch_size)
-    train_loader = loader.loader
+    ssl_trainset = AugmentedImageDataset()
+    ssl_train_loader = DataLoader(
+        ssl_trainset, batch_size=config.batch_size, shuffle=True,
+        num_workers=config.num_workers, pin_memory=True)
 
     ### Model and Loss function
     backbone = None
@@ -31,8 +33,8 @@ def barlowtwins(config):
         backbone = efficientnet_b0()
 
     model = SiameseNet(backbone)
-    criterion = BarlowTwins(0.005)
     model = model.to(config.device)
+    criterion = BarlowTwins(0.005)
     criterion = criterion.to(config.device)
 
     ### SSL Optimizer
@@ -41,28 +43,34 @@ def barlowtwins(config):
         "params": criterion.projector.parameters(),  # projector
         "params": criterion.bn.parameters()  # batch norm layer
     }]
-    optimizer_ssl = optim.Adam(
+    ssl_optimizer = optim.Adam(
         params,
         lr=config.learning_rate,
         weight_decay=config.weight_decay
     )
 
     ### Run pre-training
-    epoch_ssl, loss_ssl = train_loop_ssl(model, train_loader, criterion, optimizer_ssl, config)
+    epoch_ssl, loss_ssl = train_loop_ssl(
+        model, ssl_train_loader, criterion, ssl_optimizer, config
+    )
     print("Pre-training done!")
 
     ## **** Evaluation **** ##
     ### Linear probe training
-    trainset = BaseDataset()
+    train_data = BaseDataset()
     testset = BaseDataset(train=False)
-    loader = MakeDataLoaders(trainset, config.batch_size)
-    train_loader = loader.loader
-    epoch_eval, loss_eval, acc_eval = linear_probe(backbone, model.in_features, train_loader, config)
+    loader = MakeDataLoaders(train_data, testset, config)
+    train_loader = loader.train_loader
+    val_loader = loader.val_loader
+    test_loader = loader.test_loader
+
+    ### Run supervised training
+    epoch_eval, loss_eval, acc_eval = linear_probe(
+        backbone, model.in_features, train_loader, config
+    )
     print("Training linear layer done!")
 
     ### Test model
-    loader = MakeDataLoaders(testset, config.batch_size)
-    test_loader = loader.loader
     test_acc = test(backbone, test_loader, config)
     print("Testing done - accuracy:", test_acc)
     wandb.log({"test_accuracy": test_acc})
@@ -79,7 +87,7 @@ def barlowtwins(config):
         "acc_eval": acc_eval,
         "test_acc": test_acc,
         "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer_ssl.state_dict()
+        "optimizer_state_dict": ssl_optimizer.state_dict()
     }, config.model_dir)
 
 
