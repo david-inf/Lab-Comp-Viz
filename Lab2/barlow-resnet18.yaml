@@ -8,9 +8,13 @@ eval_momentum: 0.9
 eval_nesterov: true
 eval_decay: 0.0005
 
+backbone: "ResNet18"
+
 dataset: "CIFAR10"
 batch_size: 64
-backbone: "ResNet18"
+num_workers: 2
+val_size: 0.1
+
 log_every: 25
 batch_window: 30
 

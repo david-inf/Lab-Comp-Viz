@@ -17,23 +17,6 @@ def get_value(x):
     return x.detach().cpu().numpy()
 
 
-def train_log(epoch, batch_ct, train_loss):
-    """ Log training metrics to WandB """
-    log_dict = {
-        "epoch": epoch,
-        "train loss": train_loss,
-    }
-    wandb.log(log_dict, step=batch_ct)
-
-
-def val_log(epoch, batch_ct, val_acc):
-    """ Log validation metrics to WandB """
-    log_dict = {
-        "epoch": epoch, "val accuracy": val_acc
-    }
-    wandb.log(log_dict, step=batch_ct)
-
-
 def linear_probe(model, in_features, train_loader, config):
 
     # add linear layer
@@ -61,38 +44,13 @@ def linear_probe(model, in_features, train_loader, config):
     return epoch, loss_train, acc_train
 
 
-def test(model, test_loader, config):
-    """" Test loop for classification model """
-    model.eval()  # evaluation mode
-
-    # loss_fn = torch.nn.CrossEntropyLoss()
-    # losses, accs = [], []
-    correct = []  # will be of the dataset size
-
-    with torch.no_grad():
-        with tqdm(test_loader, unit="batch") as tepoch:
-            for X, y in tepoch:
-                tepoch.set_description("Testing")
-
-                X, y = X.to(config.device), y.to(config.device)
-                output = model(X)  # [batch_size, num_classes]
-                pred = np.argmax(get_value(output), axis=1)  # (batch_size,)
-                # loss = loss_fn(output, y)  # scalar
-
-                # losses.append(get_value(loss))
-                correct_i = pred == get_value(y)  # boolean array
-                correct.extend(list(correct_i))
-
-    return np.mean(correct)
-
-
 def train_loop_ssl(model, train_loader, criterion, optimizer, config):
-    """ Training loop for classification model """
+    """ Training loop for SSL pre-training """
     # Tell wandb to watch what the model gets up to: gradients, weights, and more!
     wandb.watch(model, criterion, log="all", log_freq=10)
 
     # Run training and track with wandb
-    step = 0  # logging
+    step = 0  # logging step
     for epoch in range(1, config.epochs + 1):
         model.train()
         losses = []
@@ -114,12 +72,16 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, config):
                 losses.append(get_value(loss))
                 ## -----
 
-                # Log metrics every log_every batches
+                # Log metrics every `log_every` batches and take loss for `batch_window`
                 if batch_idx % config.log_every == 0:
+                    ## Pre-training metrics
                     train_loss = np.mean(losses[-config.batch_window:])
-                    # log to wandb
-                    train_log(epoch, batch_idx, train_loss)
-                    # log to console
+                    ## Log SSL metrics to wandb
+                    wandb.log({
+                        "epoch": epoch,
+                        "pre-train loss": train_loss
+                    }, step=step)
+                    ## Log to console
                     tepoch.set_postfix(loss=train_loss)
                     tepoch.update()
                     step += 1
@@ -127,7 +89,8 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, config):
     return epoch, train_loss
 
 
-def train_loop_eval(model, train_loader, optimizer, criterion, config):
+def train_loop_eval(model, train_loader, optimizer, criterion, config, val_loader=None):
+    """ Training loop for SL training that can be used for SSL evaluation """
 
     step = 0
     for epoch in range(1, config.eval_epochs + 1):
@@ -153,12 +116,45 @@ def train_loop_eval(model, train_loader, optimizer, criterion, config):
                 ## -----
 
                 if batch_idx % config.log_every == 0:
+                    ## Training metrics
                     train_loss = np.mean(losses[-config.batch_window:])
                     train_acc = np.mean(accs[-config.batch_window:])
+                    ## Validation metrics
+                    # val_acc = test(model, val_loader, config)
+                    ## Log SL metrics to wandb
+                    wandb.log({
+                        "epoch": epoch,
+                        "train loss": train_loss,
+                        "train accuracy": train_acc,
+                        # "val accuracy": val_acc
+                    }, step=step)
+                    ## Log to console
                     tepoch.set_postfix(loss=train_loss, accuracy=100.*train_acc)
                     tepoch.update()
                     step += 1
-        
-        # TODO: put here validation set
 
     return epoch, losses[-1], accs[-1]
+
+
+def test(model, test_loader, config):
+    """" Test/Validation loop for SL training """
+    model.eval()  # evaluation mode
+
+    correct = []  # will be of the dataset size
+    with torch.no_grad():
+        with tqdm(test_loader, unit="batch") as tepoch:
+            for X, y in tepoch:
+                tepoch.set_description("Testing")
+
+                ## -----
+                X, y = X.to(config.device), y.to(config.device)
+                output = model(X)  # [batch_size, num_classes]
+                pred = np.argmax(get_value(output), axis=1)  # (batch_size,)
+                # loss = loss_fn(output, y)  # scalar
+
+                # losses.append(get_value(loss))
+                correct_i = pred == get_value(y)  # boolean array
+                correct.extend(list(correct_i))
+                ## -----
+
+    return np.mean(correct)

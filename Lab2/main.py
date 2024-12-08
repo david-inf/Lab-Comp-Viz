@@ -29,6 +29,7 @@ def barlowtwins(config):
         backbone = resnet18()
     elif config.backbone == "EfficientNet-B0":
         backbone = efficientnet_b0()
+
     model = SiameseNet(backbone)
     criterion = BarlowTwins(0.005)
     model = model.to(config.device)

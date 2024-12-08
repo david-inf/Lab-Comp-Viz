@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import datasets
 import torchvision.transforms as T
 # TODO: import torchvision.transforms.v2 as v2
@@ -92,9 +92,31 @@ class AugmentedImageDataset(CustomImageDataset):
 # class AugmentedBaseDataset(BaseDataset):
 
 
+# class MakeDataLoaders():
+#     def __init__(self, data, batch_size, num_workers=2):
+#         # data: Dataset object
+#         self.loader = DataLoader(
+#             data, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
+#         )
+
+
 class MakeDataLoaders():
-    def __init__(self, data, batch_size, num_workers=2):
-        # data: Dataset object
-        self.loader = DataLoader(
-            data, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
+    def __init__(self, train_data, testset, config):
+        # generator = torch.Generator().manual_seed(opts.seed)
+
+        ## Train-Validation split
+        trainset, valset = random_split(
+            train_data, lengths=[1 - config.val_size, config.val_size]#, generator=generator
+        )
+
+        ## DataLoaders
+        b, w = config.batch_size, config.num_workers
+        self.train_loader = DataLoader(
+            trainset, batch_size=b, shuffle=True, num_workers=w, pin_memory=True
+        )
+        self.val_loader = DataLoader(
+            valset, batch_size=b, shuffle=True, num_workers=w, pin_memory=True
+        )
+        self.test_loader = DataLoader(
+            testset, batch_size=b, shuffle=True, num_workers=w, pin_memory=True
         )
