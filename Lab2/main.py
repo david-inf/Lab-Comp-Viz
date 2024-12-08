@@ -4,7 +4,6 @@ import yaml
 import torch
 import torch.nn as nn
 import torch.optim as optim
-# from torch.utils.data import DataLoader
 from torchvision.models import resnet18, efficientnet_b0
 
 import wandb

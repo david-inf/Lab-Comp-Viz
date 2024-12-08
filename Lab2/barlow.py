@@ -24,14 +24,10 @@ class BarlowTwins(nn.Module):
             layers.append(nn.ReLU(inplace=True))
         layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False))
         self.projector = nn.Sequential(*layers)
-        # TODO: find a better way to put on device
-        # magari possono mettere in questo file la scelta del device direttamente
-        # self.projector = self.projector.to(self.device)
 
         # normalization layer for the representations z1 and z2
         # evita sbilanciamento dei vettori all'interno dei batch
         self.bn = nn.BatchNorm1d(sizes[-1], affine=False)
-        # self.bn = self.bn.to(self.device)
 
     def forward(self, features1, features2):
 
@@ -42,9 +38,8 @@ class BarlowTwins(nn.Module):
 
         # cross-correlation matrix (similarity matrix between features)
         size = x1.shape[0]
-        cross_corr_matrix = x1.T @ x2 / size  # C=[N, N]
-        # cross_corr_matrix.div_(size)
-        # print(cross_corr_matrix)
+        cross_corr_matrix = x1.T @ x2  # C=[N, N]
+        cross_corr_matrix.div_(size)
 
         invariance = torch.diagonal(cross_corr_matrix).add_(-1).pow_(2).sum()
         redundancy_reduction = off_diagonal(cross_corr_matrix).pow_(2).sum()

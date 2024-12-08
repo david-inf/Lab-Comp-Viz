@@ -1,9 +1,9 @@
-epochs: 20
-learning_rate: 0.0001
+epochs: 40
+learning_rate: 0.0005
 weight_decay: 0.0005
 
 eval_epochs: 20
-eval_lr: 0.01
+eval_lr: 0.001
 eval_momentum: 0.9
 eval_nesterov: true
 eval_decay: 0.0005
@@ -17,4 +17,4 @@ num_workers: 2
 val_size: 0.1
 
 log_every: 25
-batch_window: 30
+batch_window: 40
