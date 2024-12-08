@@ -481,3 +481,4 @@ TSWLatexianTemp*
 #*Notes.bib
 *.pth
 /Lab2/wandb
+/Lab2/models

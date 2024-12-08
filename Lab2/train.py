@@ -17,33 +17,6 @@ def get_value(x):
     return x.detach().cpu().numpy()
 
 
-def linear_probe(model, in_features, train_loader, config):
-
-    # add linear layer
-    model.fc = nn.Linear(in_features, 10)
-    model = model.to(config.device)
-    # freeze all layers
-    for param in model.parameters():
-        param.requires_grad = False
-    # let final layer be trainable
-    model.fc.weight.requires_grad = True
-    model.fc.bias.requires_grad = True
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(
-        model.parameters(),
-        lr=config.eval_lr,
-        momentum=config.eval_momentum,
-        nesterov=config.eval_nesterov,
-        weight_decay=config.eval_decay
-    )
-
-    epoch, loss_train, acc_train = train_loop_eval(
-        model, train_loader, optimizer, criterion, config)
-
-    return epoch, loss_train, acc_train
-
-
 def train_loop_ssl(model, train_loader, criterion, optimizer, config):
     """ Training loop for SSL pre-training """
     # Tell wandb to watch what the model gets up to: gradients, weights, and more!
@@ -91,6 +64,7 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, config):
 
 def train_loop_eval(model, train_loader, optimizer, criterion, config, val_loader=None):
     """ Training loop for SL training that can be used for SSL evaluation """
+    wandb.watch(model, criterion, log="all", log_freq=10)
 
     step = 0
     for epoch in range(1, config.eval_epochs + 1):

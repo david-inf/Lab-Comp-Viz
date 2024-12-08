@@ -57,3 +57,18 @@ class SiameseNetAsync(nn.Module):
             return {'view1': x1, 'view2': x2}
 
         return x1, x2
+
+
+class BTNet(nn.Module):
+    """ Barlow Twins final model """
+    def __init__(self, backbone, projector, classifier):
+        super().__init__()
+        self.backbone = backbone
+        self.projector = projector
+        self.classifier = classifier
+
+    def forward(self, x):
+        x = self.backbone(x)  # latent space
+        x = self.projector(x)  # representation space
+        x = self.classifier(x)  # classification head
+        return x

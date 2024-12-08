@@ -1,14 +1,15 @@
-epochs: 1
+epochs: 20
 learning_rate: 0.0001
 weight_decay: 0.0005
 
-eval_epochs: 3
+eval_epochs: 20
 eval_lr: 0.01
 eval_momentum: 0.9
 eval_nesterov: true
 eval_decay: 0.0005
 
 backbone: "ResNet18"
+model_name: "barlow-resnet18"
 
 dataset: "CIFAR10"
 batch_size: 64
@@ -17,6 +18,3 @@ val_size: 0.1
 
 log_every: 25
 batch_window: 30
-
-run_name: "barlow-resnet18"
-model_dir: "./models/barlow-resnet18.pt"
