@@ -1,0 +1,18 @@
+epochs: 1
+learning_rate: 0.0001
+weight_decay: 0.0005
+
+eval_epochs: 3
+eval_lr: 0.01
+eval_momentum: 0.9
+eval_nesterov: true
+eval_decay: 0.0005
+
+dataset: "CIFAR10"
+batch_size: 64
+backbone: "EfficientNet-B0"
+log_every: 25
+batch_window: 30
+
+run_name: "barlow-effnetb0"
+model_dir: "./models/barlow-effnetb0.pt"

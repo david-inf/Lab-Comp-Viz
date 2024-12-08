@@ -20,6 +20,7 @@ class SiameseNetSync(nn.Module):
         # ovvero una volta addestrata la backbone si può poi utilizzare
         super().__init__()
         self.encoder = backbone
+        self.in_features = self.encoder.fc.in_features
         self.encoder.fc = nn.Identity()
 
     def forward(self, x1, x2, return_dict=True):

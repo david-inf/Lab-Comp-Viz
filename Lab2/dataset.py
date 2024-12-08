@@ -5,6 +5,25 @@ import torchvision.transforms as T
 # TODO: import torchvision.transforms.v2 as v2
 
 
+class BaseDataset(Dataset):
+    def __init__(self, train=True, transform=None):
+        self.dataset = datasets.CIFAR10(
+            root="../../data", train=train, download=True  # (X, y)
+        )
+        self.quick_preprocess = T.Compose([
+            T.ToTensor()
+        ])
+
+    def __len__(self):
+        return len(self.dataset)  # number of samples
+
+    def __getitem__(self, idx):
+        ## Get the sample (image, label) at idx
+        image, label = self.dataset[idx]
+
+        return self.quick_preprocess(image), label
+
+
 class CustomImageDataset(Dataset):
     def __init__(self, transform=None):
         # full dataset (X, y): X=[N, 32, 32, 3], y=[N]
@@ -68,6 +87,9 @@ class AugmentedImageDataset(CustomImageDataset):
         image2 = self.pipeline(image)
 
         return image1, image2, label
+
+
+# class AugmentedBaseDataset(BaseDataset):
 
 
 class MakeDataLoaders():

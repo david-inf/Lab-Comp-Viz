@@ -42,7 +42,7 @@ class BarlowTwins(nn.Module):
 
         # cross-correlation matrix (similarity matrix between features)
         size = x1.shape[0]
-        cross_corr_matrix = x1.T @ x2  # C=[N, N]
+        cross_corr_matrix = x1.T @ x2 / size  # C=[N, N]
         # cross_corr_matrix.div_(size)
         # print(cross_corr_matrix)
 
