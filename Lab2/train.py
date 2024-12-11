@@ -29,13 +29,13 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, config):
         losses = []
         with tqdm(train_loader, unit="batch") as tepoch:
             for batch_idx, (view1, view2, _) in enumerate(tepoch):
-                tepoch.set_description(f"Train epoch {epoch}")
+                tepoch.set_description(f"Pre-train epoch {epoch}")
 
                 ## -----
                 view1, view2 = view1.to(config.device), view2.to(config.device)
                 optimizer.zero_grad()  # zero the gradients
                 # Forward pass -> logits
-                output = model(view1, view2)
+                output = model(view1, view2)  # [N, z_dim], [N, z_dim]
                 features1, features2 = output.values()
                 loss = criterion(features1, features2)
                 # Backward pass
@@ -67,7 +67,7 @@ def train_loop_eval(model, train_loader, optimizer, criterion, config, val_loade
     wandb.watch(model, criterion, log="all", log_freq=10)
 
     step = 0
-    for epoch in range(1, config.eval_epochs + 1):
+    for epoch in range(1, config.epochs + 1):
         model.train()
         losses, accs = [], []
         with tqdm(train_loader, unit="batch") as tepoch:

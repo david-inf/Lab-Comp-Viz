@@ -1,0 +1,27 @@
+global:
+  backbone: "SimpleNet"
+  z_dim: 256
+  model_name: "simple-net"
+  dataset: "CIFAR10"
+  val_size: 0.1
+  log_every: 25
+  batch_window: 40
+
+tasks:
+  pretraining:
+    epochs: 5
+    learning_rate: 0.001
+    momentum: 0.9
+    nesterov: false
+    weight_decay: 0.
+    batch_size: 128 # increase, at least 256, however too much for cifar10
+    num_workers: 4
+
+  downstream:
+    epochs: 1
+    learning_rate: 0.001
+    momentum: 0.9
+    nesterov: true
+    weight_decay: 0.0005
+    batch_size: 64
+    num_workers: 0

@@ -1,22 +1,23 @@
+from types import SimpleNamespace
 import argparse
 import yaml
+import copy
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision.models import resnet18, efficientnet_b0
+from torch.utils.data import DataLoader
 
 import wandb
 
 from train import train_loop_ssl, train_loop_eval, test
 from dataset import BaseDataset, AugmentedImageDataset, MakeDataLoaders
-from nets import BTNet
+from nets import BTNet, SimpleNet, SiameseNetSync as SiameseNet
+from barlow import BarlowTwins
 
 
 def ssl_train(config):
-    from torch.utils.data import DataLoader
-    from nets import SiameseNetSync as SiameseNet
-    from barlow import BarlowTwins
 
     ### Dataset and DataLoader
     trainset = AugmentedImageDataset()
@@ -26,34 +27,42 @@ def ssl_train(config):
     )
 
     ### Model and Loss function
+    print("**** Checking backbone", config.backbone, "****")
     backbone = None
     if config.backbone == "ResNet18":
-        backbone = resnet18()
+        backbone = resnet18(weights="DEFAULT")
     elif config.backbone == "EfficientNet-B0":
         backbone = efficientnet_b0()
+    elif config.backbone == "SimpleNet":
+        backbone = SimpleNet(16, config.z_dim, 10)
 
+    print("**** Loading model to", config.device, "****")
     model = SiameseNet(backbone)
     model = model.to(config.device)
-    criterion = BarlowTwins(0.005)
+    criterion = BarlowTwins(0.005, config.z_dim)
     criterion = criterion.to(config.device)
 
     ### SSL Optimizer
+    # TODO: use scheduler
     params = [{
         "params": model.parameters(),  # backbone
         "params": criterion.projector.parameters(),  # projector
         "params": criterion.bn.parameters()  # batch norm layer
     }]
-    optimizer = optim.Adam(
+    optimizer = optim.SGD(
         params,
         lr=config.learning_rate,
+        momentum=config.momentum,
+        nesterov=config.nesterov,
         weight_decay=config.weight_decay
     )
 
     ### Run pre-training
+    print("\n**** Starting pre-training ****")
     epoch, loss = train_loop_ssl(
         model, train_loader, criterion, optimizer, config
     )
-    print("\n**** Pre-training done! ****\n")
+    print("**** Pre-training done! ****\n")
 
     ### Save the model in the exchangeable ONNX format
     # input_data = torch.rand(1, 3, 32, 32).to(config.device)
@@ -71,7 +80,7 @@ def ssl_train(config):
 
 def sl_train(config, backbone, projector):
 
-    ### Linear probe training
+    ### Dataset and DataLoader
     train_data = BaseDataset()
     testset = BaseDataset(train=False)
     loader = MakeDataLoaders(train_data, testset, config)
@@ -88,11 +97,14 @@ def sl_train(config, backbone, projector):
     ]
     classifier = nn.Sequential(*layers)
     # freeze all layers
+    print("**** Freezing layers ****")
     for param in backbone.parameters():
         param.requires_grad = False
     for param in projector.parameters():
         param.requires_grad = False
     # final model
+    print("**** Loading model to", config.device, "****")
+    # forse la parte di evaluation è soltanto con la backbone (encoder)
     model = BTNet(backbone, projector, classifier)
     model = model.to(config.device)
 
@@ -100,17 +112,18 @@ def sl_train(config, backbone, projector):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         model.parameters(),
-        lr=config.eval_lr,
-        momentum=config.eval_momentum,
-        nesterov=config.eval_nesterov,
-        weight_decay=config.eval_decay
+        lr=config.learning_rate,
+        momentum=config.momentum,
+        nesterov=config.nesterov,
+        weight_decay=config.weight_decay
     )
 
     ### Run supervised training
+    print("**** Starting pre-training ****")
     epoch, loss_train, acc_train = train_loop_eval(
         model, train_loader, optimizer, criterion, config
     )
-    print("\n**** Supervised learning training done! ****\n")
+    print("**** Supervised learning training done! ****\n")
 
     ### Test model
     test_acc = test(
@@ -135,35 +148,53 @@ def sl_train(config, backbone, projector):
 
 if __name__ == "__main__":
 
+    ## mio personale
+    project = "comp-viz"
+    entity = "david-inf-team"
+
+    ## gruppo lab2
+    # project = "cv-lab2"
+    # entity = "alessiochen98-university-of-florence"
+
+    def merge_configs(global_config, task_config):
+        merged = global_config.copy()
+        merged.update(task_config)
+        return merged
+
     parser = argparse.ArgumentParser()
     parser.add_argument("config", help="YAML COnfiguration file")
     args = parser.parse_args()
     with open(args.config, "r") as f:
-        hyperparams = yaml.load(f, Loader=yaml.SafeLoader)
+        # get hyper-parameters
+        hp = yaml.load(f, Loader=yaml.SafeLoader)  # dict
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    hyperparams["device"] = device
 
+    global_hp = hp["global"]
+    global_hp["device"] = device
+    pre_hp = hp["tasks"]["pretraining"]
+    down_hp = hp["tasks"]["downstream"]
+    pre_config = merge_configs(global_hp, pre_hp)  # dict
+    down_config = merge_configs(global_hp, down_hp)  # dict
 
     ## **** Pre-training **** ##
     wandb_config = dict(
-        project="cv-lab2",
-        config=hyperparams,
-        entity="alessiochen98-university-of-florence",
-        name=hyperparams["model_name"] + "_pretrain"
+        project=project,
+        config=pre_config,
+        entity=entity,
+        name=global_hp["model_name"] + "_pretrain"
     )
 
     with wandb.init(**wandb_config):
         config = wandb.config
         backbone, projector = ssl_train(config)
 
-
     ## **** Training **** ##
     wandb_config = dict(
-        project="cv-lab2",
-        config=hyperparams,
-        entity="alessiochen98-university-of-florence",
-        name=hyperparams["model_name"] + "_eval"
+        project=project,
+        config=down_config,
+        entity=entity,
+        name=global_hp["model_name"] + "_eval"
     )
 
     with wandb.init(**wandb_config):
