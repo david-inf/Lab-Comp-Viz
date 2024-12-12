@@ -6,7 +6,7 @@ import torchvision.transforms as T
 
 
 class BaseDataset(Dataset):
-    def __init__(self, train=True, transform=None):
+    def __init__(self, train=True):
         self.dataset = datasets.CIFAR10(
             root="../../data", train=train, download=True  # (X, y)
         )
@@ -74,9 +74,9 @@ class AugmentedImageDataset(CustomImageDataset):
         self.pipeline = T.Compose([
             T.RandomResizedCrop(size=size),
             T.RandomHorizontalFlip(),
-            T.RandomApply([color_jitter], p=0.8),
-            T.RandomGrayscale(p=0.2),
-            T.GaussianBlur(kernel_size=9),
+            # T.RandomApply([color_jitter], p=0.8),
+            # T.RandomGrayscale(p=0.2),
+            T.GaussianBlur(kernel_size=3),
             T.ToTensor()
         ])
 

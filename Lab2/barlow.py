@@ -19,7 +19,7 @@ def normalize_repr(z):
 
 
 class BarlowTwins(nn.Module):
-    def __init__(self, lambd, z_dim=512, sizes=[2048]):
+    def __init__(self, lambd, z_dim=512, sizes=[1024]):
         super().__init__()
         self.lambd = lambd  # for the redundancy reduction term
 

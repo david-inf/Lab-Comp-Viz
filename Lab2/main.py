@@ -6,14 +6,16 @@ import copy
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.models import resnet18, efficientnet_b0
 from torch.utils.data import DataLoader
 
 import wandb
 
+from nets import SimpleNet
 from train import train_loop_ssl, train_loop_eval, test
 from dataset import BaseDataset, AugmentedImageDataset, MakeDataLoaders
-from nets import BTNet, SimpleNet, SiameseNetSync as SiameseNet
+from nets import BTNet, SiameseNetSync as SiameseNet
 from barlow import BarlowTwins
 
 
@@ -43,12 +45,11 @@ def ssl_train(config):
     criterion = criterion.to(config.device)
 
     ### SSL Optimizer
-    # TODO: use scheduler
-    params = [{
-        "params": model.parameters(),  # backbone
-        "params": criterion.projector.parameters(),  # projector
-        "params": criterion.bn.parameters()  # batch norm layer
-    }]
+    params = [
+        {"params": model.parameters()},  # backbone
+        {"params": criterion.projector.parameters(), "lr": 1e-3},  # projector
+        {"params": criterion.bn.parameters(), "lr": 1e-3}  # batch norm
+    ]
     optimizer = optim.SGD(
         params,
         lr=config.learning_rate,
@@ -56,11 +57,14 @@ def ssl_train(config):
         nesterov=config.nesterov,
         weight_decay=config.weight_decay
     )
+    scheduler = ReduceLROnPlateau(
+        optimizer, "min",
+        threshold=1e-2, patience=6)
 
     ### Run pre-training
     print("\n**** Starting pre-training ****")
     epoch, loss = train_loop_ssl(
-        model, train_loader, criterion, optimizer, config
+        model, train_loader, criterion, optimizer, scheduler, config
     )
     print("**** Pre-training done! ****\n")
 

@@ -17,7 +17,7 @@ def get_value(x):
     return x.detach().cpu().numpy()
 
 
-def train_loop_ssl(model, train_loader, criterion, optimizer, config):
+def train_loop_ssl(model, train_loader, criterion, optimizer, scheduler, config):
     """ Training loop for SSL pre-training """
     # Tell wandb to watch what the model gets up to: gradients, weights, and more!
     wandb.watch(model, criterion, log="all", log_freq=10)
@@ -55,9 +55,14 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, config):
                         "pre-train loss": train_loss
                     }, step=step)
                     ## Log to console
-                    tepoch.set_postfix(loss=train_loss)
+                    tepoch.set_postfix(
+                        loss=train_loss,
+                        lr=scheduler.get_last_lr()
+                    )
                     tepoch.update()
                     step += 1
+
+            scheduler.step(np.mean(losses))
 
     return epoch, train_loss
 
