@@ -74,8 +74,8 @@ class AugmentedImageDataset(CustomImageDataset):
         self.pipeline = T.Compose([
             T.RandomResizedCrop(size=size),
             T.RandomHorizontalFlip(),
-            # T.RandomApply([color_jitter], p=0.8),
-            # T.RandomGrayscale(p=0.2),
+            T.RandomApply([color_jitter], p=0.4),
+            T.RandomGrayscale(p=0.2),
             T.GaussianBlur(kernel_size=3),
             T.ToTensor()
         ])
@@ -120,3 +120,13 @@ class MakeDataLoaders():
         self.test_loader = DataLoader(
             testset, batch_size=b, shuffle=True, num_workers=w, pin_memory=True
         )
+
+
+def make_loader(data, config):
+    # data: Dataset object
+    # config: object
+    loader = DataLoader(
+        data, batch_size=config.batch_size, shuffle=True,
+        num_workers=config.num_workers, pin_memory=True
+    )
+    return loader

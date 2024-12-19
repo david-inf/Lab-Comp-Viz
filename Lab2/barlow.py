@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 def off_diagonal(x):
@@ -19,7 +18,7 @@ def normalize_repr(z):
 
 
 class BarlowTwins(nn.Module):
-    def __init__(self, lambd, z_dim=512, sizes=[1024]):
+    def __init__(self, lambd, z_dim=512, sizes=[1024, 2048]):
         super().__init__()
         self.lambd = lambd  # for the redundancy reduction term
 
@@ -56,3 +55,19 @@ class BarlowTwins(nn.Module):
         loss = invariance + self.lambd * redundancy_reduction
 
         return loss
+
+
+class BTNet(nn.Module):
+    """
+    Barlow Twins final model.
+    Puts together backbone and classifier for the downstream task
+    """
+    def __init__(self, backbone, classifier):
+        super().__init__()
+        self.backbone = backbone
+        self.classifier = classifier
+
+    def forward(self, x):
+        x = self.backbone(x)  # latent representation in `z_dim``
+        x = self.classifier(x)  # classification head
+        return x

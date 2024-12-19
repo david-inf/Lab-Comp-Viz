@@ -1,20 +1,30 @@
-epochs: 40
-learning_rate: 0.0005
-weight_decay: 0.0005
+global:
+  backbone: "ResNet18"
+  z_dim: 512  # specific of resnet18
+  model_name: "barlow-resnet18"
+  dataset: "CIFAR10"
 
-eval_epochs: 20
-eval_lr: 0.001
-eval_momentum: 0.9
-eval_nesterov: true
-eval_decay: 0.0005
+tasks:
+  pretraining:
+    epochs: 15
+    learning_rate: 0.1
+    momentum: 0.9
+    nesterov: false
+    weight_decay: 0.0005
+    batch_size: 128  # increase, at least 256, however too much for cifar10
+    num_workers: 4
+    log_every: 25
+    batch_window: 40
 
-backbone: "ResNet18"
-model_name: "barlow-resnet18"
-
-dataset: "CIFAR10"
-batch_size: 64
-num_workers: 2
-val_size: 0.1
-
-log_every: 25
-batch_window: 40
+  downstream:
+    eval: "linear"  # linear or MLP or kNN
+    val_size: 0.1
+    epochs: 20
+    learning_rate: 0.001
+    momentum: 0.9
+    nesterov: true
+    weight_decay: 0.0005
+    batch_size: 64
+    num_workers: 0
+    log_every: 25
+    batch_window: 40

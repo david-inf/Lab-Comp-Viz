@@ -1,11 +1,9 @@
-import time
+# import time
 import numpy as np
 
 from tqdm import tqdm
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
 
 import wandb
 
@@ -29,7 +27,7 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, scheduler, config)
         losses = []
         with tqdm(train_loader, unit="batch") as tepoch:
             for batch_idx, (view1, view2, _) in enumerate(tepoch):
-                tepoch.set_description(f"Pre-train epoch {epoch}")
+                tepoch.set_description(f"Epoch {epoch}")
 
                 ## -----
                 view1, view2 = view1.to(config.device), view2.to(config.device)
@@ -62,7 +60,8 @@ def train_loop_ssl(model, train_loader, criterion, optimizer, scheduler, config)
                     tepoch.update()
                     step += 1
 
-            scheduler.step(np.mean(losses))
+            # scheduler.step(np.mean(losses))  # if plateau
+            scheduler.step()  # if exponential
 
     return epoch, train_loss
 
@@ -77,7 +76,7 @@ def train_loop_eval(model, train_loader, optimizer, criterion, config, val_loade
         losses, accs = [], []
         with tqdm(train_loader, unit="batch") as tepoch:
             for batch_idx, (X, y) in enumerate(tepoch):
-                tepoch.set_description(f"Train epoch {epoch}")
+                tepoch.set_description(f"Epoch {epoch}")
 
                 ## -----
                 X, y = X.to(config.device), y.to(config.device)
@@ -98,7 +97,7 @@ def train_loop_eval(model, train_loader, optimizer, criterion, config, val_loade
                     ## Training metrics
                     train_loss = np.mean(losses[-config.batch_window:])
                     train_acc = np.mean(accs[-config.batch_window:])
-                    ## Validation metrics
+                    ## TODO: Validation metrics
                     # val_acc = test(model, val_loader, config)
                     ## Log SL metrics to wandb
                     wandb.log({
@@ -108,7 +107,7 @@ def train_loop_eval(model, train_loader, optimizer, criterion, config, val_loade
                         # "val accuracy": val_acc
                     }, step=step)
                     ## Log to console
-                    tepoch.set_postfix(loss=train_loss, accuracy=100.*train_acc)
+                    tepoch.set_postfix(loss=train_loss, acc=100.*train_acc)
                     tepoch.update()
                     step += 1
 
